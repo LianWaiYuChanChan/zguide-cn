@@ -72,7 +72,7 @@ zmq_close (mousetrap);
 
 ### 使用套接字构建拓扑结构
 
-在连接两个节点时，其中一个需要使用zmq_bind()，另一个则使用zmq_connect()。通常来讲，使用zmq_bind()连接的节点称之为服务端，它有着一个较为固定的网络地址；使用zmq_connect()连接的节点称为客户端，其地址不固定。我们会有这样的说法：绑定套接字至端点；连接套接字至端点。端点指的是某个广为周知网络地址。
+在连接两个节点时，其中一个需要使用zmq_bind()，另一个则使用zmq_connect()。通常来讲，使用zmq_bind()连接的节点称之为服务端，它有着一个较为固定的网络地址；使用zmq_connect()连接的节点称为客户端，其地址不固定。我们会有这样的说法：绑定套接字至端点；连接套接字至端点。端点指的是某个众所周知的网络地址。
 
 ZMQ连接和传统的TCP连接是有区别的，主要有：
 
@@ -294,24 +294,24 @@ ZMQ支持多帧消息，即在一条消息中保存多个消息帧。这在实�
 ```c
 //
 //  从多个套接字中获取消息
-//  本示例简单地再循环中使用recv函数
+//  本示例简单地在循环中使用recv函数
 //
 #include "zhelpers.h"
- 
-int main (void) 
+
+int main (void)
 {
     //  准备上下文和套接字
     void *context = zmq_init (1);
- 
+
     //  连接至任务分发器
     void *receiver = zmq_socket (context, ZMQ_PULL);
     zmq_connect (receiver, "tcp://localhost:5557");
- 
+
     //  连接至天气服务
     void *subscriber = zmq_socket (context, ZMQ_SUB);
     zmq_connect (subscriber, "tcp://localhost:5556");
     zmq_setsockopt (subscriber, ZMQ_SUBSCRIBE, "10001 ", 6);
- 
+
     //  处理从两个套接字中接收到的消息
     //  这里我们会优先处理从任务分发器接收到的消息
     while (1) {
@@ -359,20 +359,20 @@ int main (void)
 //  本例使用zmq_poll()函数
 //
 #include "zhelpers.h"
- 
-int main (void) 
+
+int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  连接任务分发器
     void *receiver = zmq_socket (context, ZMQ_PULL);
     zmq_connect (receiver, "tcp://localhost:5557");
- 
+
     //  连接气象更新服务
     void *subscriber = zmq_socket (context, ZMQ_SUB);
     zmq_connect (subscriber, "tcp://localhost:5556");
     zmq_setsockopt (subscriber, ZMQ_SUBSCRIBE, "10001 ", 6);
- 
+
     //  初始化轮询对象
     zmq_pollitem_t items [] = {
         { receiver, 0, ZMQ_POLLIN, 0 },
@@ -470,24 +470,24 @@ assert (rc == 0);
 //  添加发布-订阅消息流，用以接收自杀消息
 //
 #include "zhelpers.h"
- 
-int main (void) 
+
+int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  用于接收消息的套接字
     void *receiver = zmq_socket (context, ZMQ_PULL);
     zmq_connect (receiver, "tcp://localhost:5557");
- 
+
     //  用户发送消息的套接字
     void *sender = zmq_socket (context, ZMQ_PUSH);
     zmq_connect (sender, "tcp://localhost:5558");
- 
+
     //  用户接收控制消息的套接字
     void *controller = zmq_socket (context, ZMQ_SUB);
     zmq_connect (controller, "tcp://localhost:5559");
     zmq_setsockopt (controller, ZMQ_SUBSCRIBE, "", 0);
- 
+
     //  处理接收到的任务或控制消息
     zmq_pollitem_t items [] = {
         { receiver, 0, ZMQ_POLLIN, 0 },
@@ -500,18 +500,18 @@ int main (void)
         if (items [0].revents & ZMQ_POLLIN) {
             zmq_msg_init (&message);
             zmq_recv (receiver, &message, 0);
- 
+
             //  工作
             s_sleep (atoi ((char *) zmq_msg_data (&message)));
- 
+
             //  发送结果
             zmq_msg_init (&message);
             zmq_send (sender, &message, 0);
- 
+
             //  简单的任务进图指示
             printf (".");
             fflush (stdout);
- 
+
             zmq_msg_close (&message);
         }
         //  任何控制命令都表示自杀
@@ -537,26 +537,26 @@ int main (void)
 //  添加发布-订阅消息流，用以向worker发送自杀信号
 //
 #include "zhelpers.h"
- 
-int main (void) 
+
+int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  用于接收消息的套接字
     void *receiver = zmq_socket (context, ZMQ_PULL);
     zmq_bind (receiver, "tcp://*:5558");
- 
+
     //  用以发送控制信息的套接字
     void *controller = zmq_socket (context, ZMQ_PUB);
     zmq_bind (controller, "tcp://*:5559");
- 
+
     //  等待任务开始
     char *string = s_recv (receiver);
     free (string);
- 
+
     //  开始计时
     int64_t start_time = s_clock ();
- 
+
     //  确认100个任务处理完毕
     int task_nbr;
     for (task_nbr = 0; task_nbr < 100; task_nbr++) {
@@ -568,15 +568,15 @@ int main (void)
             printf (".");
         fflush (stdout);
     }
-    printf ("总执行时间: %d msec\n", 
+    printf ("总执行时间: %d msec\n",
         (int) (s_clock () - start_time));
- 
+
     //  发送自杀消息给worker
     s_send (controller, "KILL");
- 
+
     //  结束
     sleep (1);              //  等待发送完毕
- 
+
     zmq_close (receiver);
     zmq_close (controller);
     zmq_term (context);
@@ -599,20 +599,20 @@ int main (void)
 #include <zmq.h>
 #include <stdio.h>
 #include <signal.h>
- 
+
 //  ---------------------------------------------------------------------
 //  消息处理
 //
 //  程序开始运行时调用s_catch_signals()函数；
 //  在循环中判断s_interrupted是否为1，是则跳出循环；
 //  很适用于zmq_poll()。
- 
+
 static int s_interrupted = 0;
 static void s_signal_handler (int signal_value)
 {
     s_interrupted = 1;
 }
- 
+
 static void s_catch_signals (void)
 {
     struct sigaction action;
@@ -622,20 +622,20 @@ static void s_catch_signals (void)
     sigaction (SIGINT, &action, NULL);
     sigaction (SIGTERM, &action, NULL);
 }
- 
+
 int main (void)
 {
     void *context = zmq_init (1);
     void *socket = zmq_socket (context, ZMQ_REP);
     zmq_bind (socket, "tcp://*:5555");
- 
+
     s_catch_signals ();
     while (1) {
         //  阻塞式的读取会在收到信号时停止
         zmq_msg_t message;
         zmq_msg_init (&message);
         zmq_recv (socket, &message, 0);
- 
+
         if (s_interrupted) {
             printf ("W: 收到中断消息，程序中止...\n");
             break;
@@ -777,28 +777,28 @@ ZMQ装置比起其他中间件的优势在于，你可以将它放在网络中�
 //  气象信息代理服务装置
 //
 #include "zhelpers.h"
- 
+
 int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  订阅气象信息
     void *frontend = zmq_socket (context, ZMQ_SUB);
     zmq_connect (frontend, "tcp://192.168.55.210:5556");
- 
+
     //  转发气象信息
     void *backend = zmq_socket (context, ZMQ_PUB);
     zmq_bind (backend, "tcp://10.1.1.0:8100");
- 
+
     //  订阅所有消息
     zmq_setsockopt (frontend, ZMQ_SUBSCRIBE, "", 0);
- 
+
     //  转发消息
     while (1) {
         while (1) {
             zmq_msg_t message;
             int64_t more;
- 
+
             //  处理所有的消息帧
             zmq_msg_init (&message);
             zmq_recv (frontend, &message, 0);
@@ -863,15 +863,15 @@ int main (void)
 //  发送Hello给服务端，等待World应答
 //
 #include "zhelpers.h"
- 
-int main (void) 
+
+int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  用于和服务端通信的套接字
     void *requester = zmq_socket (context, ZMQ_REQ);
     zmq_connect (requester, "tcp://localhost:5559");
- 
+
     int request_nbr;
     for (request_nbr = 0; request_nbr != 10; request_nbr++) {
         s_send (requester, "Hello");
@@ -896,24 +896,24 @@ int main (void)
 //  接收Hello请求，返回World应答
 //
 #include "zhelpers.h"
- 
-int main (void) 
+
+int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  用于何客户端通信的套接字
     void *responder = zmq_socket (context, ZMQ_REP);
     zmq_connect (responder, "tcp://localhost:5560");
- 
+
     while (1) {
         //  等待下一个请求
         char *string = s_recv (responder);
         printf ("Received request: [%s]\n", string);
         free (string);
- 
+
         //  做一些“工作”
         sleep (1);
- 
+
         //  返回应答信息
         s_send (responder, "World");
     }
@@ -933,8 +933,8 @@ int main (void)
 //  简易请求-应答代理
 //
 #include "zhelpers.h"
- 
-int main (void) 
+
+int main (void)
 {
     //  准备上下文和套接字
     void *context = zmq_init (1);
@@ -942,7 +942,7 @@ int main (void)
     void *backend  = zmq_socket (context, ZMQ_DEALER);
     zmq_bind (frontend, "tcp://*:5559");
     zmq_bind (backend,  "tcp://*:5560");
- 
+
     //  初始化轮询集合
     zmq_pollitem_t items [] = {
         { frontend, 0, ZMQ_POLLIN, 0 },
@@ -952,7 +952,7 @@ int main (void)
     while (1) {
         zmq_msg_t message;
         int64_t more;           //  检测多帧消息
- 
+
         zmq_poll (items, 2, -1);
         if (items [0].revents & ZMQ_POLLIN) {
             while (1) {
@@ -1017,22 +1017,22 @@ zmq_device (ZMQ_QUEUE, frontend, backend);
 //  功能和请求-应答代理相同，但使用了内置的装置
 //
 #include "zhelpers.h"
- 
-int main (void) 
+
+int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  客户端套接字
     void *frontend = zmq_socket (context, ZMQ_ROUTER);
     zmq_bind (frontend, "tcp://*:5559");
- 
+
     //  服务端套接字
     void *backend = zmq_socket (context, ZMQ_DEALER);
     zmq_bind (backend, "tcp://*:5560");
- 
+
     //  启动内置装置
     zmq_device (ZMQ_QUEUE, frontend, backend);
- 
+
     //  程序不会运行到这里
     zmq_close (frontend);
     zmq_close (backend);
@@ -1092,13 +1092,13 @@ ZMQ使用的是系统原生的线程机制，而不是某种“绿色线程”�
 //
 #include "zhelpers.h"
 #include <pthread.h>
- 
+
 static void *
 worker_routine (void *context) {
     //  连接至代理的套接字
     void *receiver = zmq_socket (context, ZMQ_REP);
     zmq_connect (receiver, "inproc://workers");
- 
+
     while (1) {
         char *string = s_recv (receiver);
         printf ("Received request: [%s]\n", string);
@@ -1111,19 +1111,19 @@ worker_routine (void *context) {
     zmq_close (receiver);
     return NULL;
 }
- 
+
 int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  用于和client进行通信的套接字
     void *clients = zmq_socket (context, ZMQ_ROUTER);
     zmq_bind (clients, "tcp://*:5555");
- 
+
     //  用于和worker进行通信的套接字
     void *workers = zmq_socket (context, ZMQ_DEALER);
     zmq_bind (workers, "inproc://workers");
- 
+
     //  启动一个worker池
     int thread_nbr;
     for (thread_nbr = 0; thread_nbr < 5; thread_nbr++) {
@@ -1132,7 +1132,7 @@ int main (void)
     }
     //  启动队列装置
     zmq_device (ZMQ_QUEUE, clients, workers);
- 
+
     //  程序不会运行到这里，但仍进行清理工作
     zmq_close (clients);
     zmq_close (workers);
@@ -1172,7 +1172,7 @@ int main (void)
 //
 #include "zhelpers.h"
 #include <pthread.h>
- 
+
 static void *
 step1 (void *context) {
     //  连接至步骤2，告知我已就绪
@@ -1181,10 +1181,10 @@ step1 (void *context) {
     printf ("步骤1就绪，正在通知步骤2……\n");
     s_send (xmitter, "READY");
     zmq_close (xmitter);
- 
+
     return NULL;
 }
- 
+
 static void *
 step2 (void *context) {
     //  启动步骤1前线绑定至inproc套接字
@@ -1192,37 +1192,37 @@ step2 (void *context) {
     zmq_bind (receiver, "inproc://step2");
     pthread_t thread;
     pthread_create (&thread, NULL, step1, context);
- 
+
     //  等待信号
     char *string = s_recv (receiver);
     free (string);
     zmq_close (receiver);
- 
+
     //  连接至步骤3，告知我已就绪
     void *xmitter = zmq_socket (context, ZMQ_PAIR);
     zmq_connect (xmitter, "inproc://step3");
     printf ("步骤2就绪，正在通知步骤3……\n");
     s_send (xmitter, "READY");
     zmq_close (xmitter);
- 
+
     return NULL;
 }
- 
+
 int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  启动步骤2前线绑定至inproc套接字
     void *receiver = zmq_socket (context, ZMQ_PAIR);
     zmq_bind (receiver, "inproc://step3");
     pthread_t thread;
     pthread_create (&thread, NULL, step2, context);
- 
+
     //  等待信号
     char *string = s_recv (receiver);
     free (string);
     zmq_close (receiver);
- 
+
     printf ("测试成功！\n");
     zmq_term (context);
     return 0;
@@ -1268,22 +1268,22 @@ int main (void)
 //  发布者 - 同步版
 //
 #include "zhelpers.h"
- 
+
 //  等待10个订阅者连接
 #define SUBSCRIBERS_EXPECTED  10
- 
+
 int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  用于和客户端通信的套接字
     void *publisher = zmq_socket (context, ZMQ_PUB);
     zmq_bind (publisher, "tcp://*:5561");
- 
+
     //  用于接收信号的套接字
     void *syncservice = zmq_socket (context, ZMQ_REP);
     zmq_bind (syncservice, "tcp://*:5562");
- 
+
     //  接收订阅者的就绪信号
     printf ("正在等待订阅者就绪\n");
     int subscribers = 0;
@@ -1300,9 +1300,9 @@ int main (void)
     int update_nbr;
     for (update_nbr = 0; update_nbr < 1000000; update_nbr++)
         s_send (publisher, "Rhubarb");
- 
+
     s_send (publisher, "END");
- 
+
     zmq_close (publisher);
     zmq_close (syncservice);
     zmq_term (context);
@@ -1321,30 +1321,30 @@ int main (void)
 //  订阅者 - 同步版
 //
 #include "zhelpers.h"
- 
+
 int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  一、连接SUB套接字
     void *subscriber = zmq_socket (context, ZMQ_SUB);
     zmq_connect (subscriber, "tcp://localhost:5561");
     zmq_setsockopt (subscriber, ZMQ_SUBSCRIBE, "", 0);
- 
+
     //  ZMQ太快了，我们延迟一会儿……
     sleep (1);
- 
+
     //  二、与发布者进行同步
     void *syncclient = zmq_socket (context, ZMQ_REQ);
     zmq_connect (syncclient, "tcp://localhost:5562");
- 
+
     //  - 发送请求
     s_send (syncclient, "");
- 
+
     //  - 等待应答
     char *string = s_recv (syncclient);
     free (string);
- 
+
     //  三、处理消息
     int update_nbr = 0;
     while (1) {
@@ -1357,7 +1357,7 @@ int main (void)
         update_nbr++;
     }
     printf ("收到 %d 条消息\n", update_nbr);
- 
+
     zmq_close (subscriber);
     zmq_close (syncclient);
     zmq_term (context);
@@ -1511,14 +1511,14 @@ zmq_setsockopt (socket, ZMQ_IDENTITY, "Lucy", 4);
 //  s_sendmore()函数也是zhelpers.h提供的
 //
 #include "zhelpers.h"
- 
+
 int main (void)
 {
     //  准备上下文和PUB套接字
     void *context = zmq_init (1);
     void *publisher = zmq_socket (context, ZMQ_PUB);
     zmq_bind (publisher, "tcp://*:5563");
- 
+
     while (1) {
         //  发布两条消息，A类型和B类型
         s_sendmore (publisher, "A");
@@ -1543,7 +1543,7 @@ int main (void)
 //  发布-订阅消息信封 - 订阅者
 //
 #include "zhelpers.h"
- 
+
 int main (void)
 {
     //  准备上下文和SUB套接字
@@ -1551,7 +1551,7 @@ int main (void)
     void *subscriber = zmq_socket (context, ZMQ_SUB);
     zmq_connect (subscriber, "tcp://localhost:5563");
     zmq_setsockopt (subscriber, ZMQ_SUBSCRIBE, "B", 1);
- 
+
     while (1) {
         //  读取消息信封
         char *address = s_recv (subscriber);
@@ -1611,23 +1611,23 @@ int main (void)
 //  发布者 - 连接持久化的订阅者
 //
 #include "zhelpers.h"
- 
-int main (void) 
+
+int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  订阅者会发送已就绪的消息
     void *sync = zmq_socket (context, ZMQ_PULL);
     zmq_bind (sync, "tcp://*:5564");
- 
+
     //  使用该套接字发布消息
     void *publisher = zmq_socket (context, ZMQ_PUB);
     zmq_bind (publisher, "tcp://*:5565");
- 
+
     //  等待同步消息
     char *string = s_recv (sync);
     free (string);
- 
+
     //  广播10条消息，一秒一条
     int update_nbr;
     for (update_nbr = 0; update_nbr < 10; update_nbr++) {
@@ -1637,7 +1637,7 @@ int main (void)
         sleep (1);
     }
     s_send (publisher, "END");
- 
+
     zmq_close (sync);
     zmq_close (publisher);
     zmq_term (context);
@@ -1654,22 +1654,22 @@ int main (void)
 //  持久化的订阅者
 //
 #include "zhelpers.h"
- 
+
 int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  连接SUB套接字
     void *subscriber = zmq_socket (context, ZMQ_SUB);
     zmq_setsockopt (subscriber, ZMQ_IDENTITY, "Hello", 5);
     zmq_setsockopt (subscriber, ZMQ_SUBSCRIBE, "", 0);
     zmq_connect (subscriber, "tcp://localhost:5565");
- 
+
     //  发送同步消息
     void *sync = zmq_socket (context, ZMQ_PUSH);
     zmq_connect (sync, "tcp://localhost:5564");
     s_send (sync, "");
- 
+
     //  获取更新，并按指令退出
     while (1) {
         char *string = s_recv (subscriber);
@@ -1752,31 +1752,31 @@ zmq_setsockopt (publisher, ZMQ_SWAP, &swap, sizeof (swap));
 //  发布者 - 连接持久化订阅者
 //
 #include "zhelpers.h"
- 
-int main (void) 
+
+int main (void)
 {
     void *context = zmq_init (1);
- 
+
     //  订阅者会告知我们它已就绪
     void *sync = zmq_socket (context, ZMQ_PULL);
     zmq_bind (sync, "tcp://*:5564");
- 
+
     //  使用该套接字发送消息
     void *publisher = zmq_socket (context, ZMQ_PUB);
- 
+
     //  避免慢持久化订阅者消息溢出的问题
     uint64_t hwm = 1;
     zmq_setsockopt (publisher, ZMQ_HWM, &hwm, sizeof (hwm));
- 
+
     //  设置交换区大小，供所有订阅者使用
     uint64_t swap = 25000000;
     zmq_setsockopt (publisher, ZMQ_SWAP, &swap, sizeof (swap));
     zmq_bind (publisher, "tcp://*:5565");
- 
+
     //  等待同步消息
     char *string = s_recv (sync);
     free (string);
- 
+
     //  发布10条消息，一秒一条
     int update_nbr;
     for (update_nbr = 0; update_nbr < 10; update_nbr++) {
@@ -1786,7 +1786,7 @@ int main (void)
         sleep (1);
     }
     s_send (publisher, "END");
- 
+
     zmq_close (sync);
     zmq_close (publisher);
     zmq_term (context);
